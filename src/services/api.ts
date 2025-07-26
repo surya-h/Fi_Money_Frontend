@@ -189,7 +189,7 @@ class ApiService {
                     // Parse charts from text content
                     const chartMatches = part.text.match(/```chart\n([\s\S]*?)\n```/g);
                     if (chartMatches) {
-                      chartMatches.forEach(match => {
+                      chartMatches.forEach((match: string) => {
                         try {
                           const chartJson = match.replace(/```chart\n/, '').replace(/\n```/, '');
                           const chartData = JSON.parse(chartJson);

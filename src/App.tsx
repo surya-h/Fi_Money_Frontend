@@ -3,72 +3,86 @@ import { marked } from 'marked';
 import { apiService } from './services/api';
 import ChartComponent from './components/Chart';
 
+// Type definitions
+interface ChartData {
+  type: 'line' | 'bar' | 'pie' | 'doughnut';
+  title: string;
+  data: {
+    labels: string[];
+    datasets: Array<{
+      label: string;
+      data: number[];
+      backgroundColor?: string | string[];
+      borderColor?: string;
+      borderWidth?: number;
+    }>;
+  };
+}
+
+interface Message {
+  id: number;
+  content: string;
+  sender: string;
+  timestamp: number;
+  agentId?: string;
+  agentName?: string;
+  agentColor?: string;
+  isThinking?: boolean;
+  charts?: ChartData[];
+  scenario?: string;
+  error?: boolean;
+}
+
+interface FamilyMember {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  joinedAt: number;
+}
+
+interface PendingInvite {
+  id: number;
+  email: string;
+  phone: string;
+  status: string;
+  timestamp: number;
+}
+
+interface Notification {
+  id: number;
+  type: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+  icon?: string;
+  bgColor?: string;
+  title?: string;
+  description?: string;
+  expandedContent?: string;
+  clickHint?: string;
+}
+
 function App() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [collapsedAgents, setCollapsedAgents] = useState(new Set());
+  const [collapsedAgents, setCollapsedAgents] = useState(new Set<string>());
   const [showNotifications, setShowNotifications] = useState(false);
-  const [expandedNotification, setExpandedNotification] = useState(null);
-  const [currentPage, setCurrentPage] = useState('individual'); // 'individual' or 'family'
-  const [familyMembers, setFamilyMembers] = useState([]);
-  const [pendingInvites, setPendingInvites] = useState([]);
-  const [familyMessages, setFamilyMessages] = useState([]);
+  const [expandedNotification, setExpandedNotification] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState<'individual' | 'family'>('individual');
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [familyMessages, setFamilyMessages] = useState<Message[]>([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const messagesEndRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const agents = [
-    { id: 'coordinator', name: 'Coordinator Agent', color: '#00C29F' },
-    { id: 'asset', name: 'Asset & Liability Agent', color: '#00A085' },
-    { id: 'budgeting', name: 'Budgeting Agent', color: '#1DE9B6' },
-    { id: 'market', name: 'Market Agent', color: '#26C6DA' },
-    { id: 'investment', name: 'Investment Agent', color: '#29B6F6' },
-    { id: 'simulation', name: 'Simulation Agent', color: '#42A5F5' }
-  ];
 
-  const mockResponses = {
-    coordinator: "I've analyzed your profile. You're currently 25 years old with a good foundation to start building wealth. Let me coordinate with other agents to create a comprehensive plan.",
-    asset: "Current analysis shows net worth of ₹2.5 lakhs with assets including savings account (₹1.8L) and gold (₹0.7L). No significant liabilities detected.",
-    budgeting: "Based on your income of ₹60,000/month and expenses of ₹35,000/month, you can comfortably invest ₹20,000/month while maintaining an emergency fund.",
-    market: "Current market conditions favor diversified portfolios. Gold has shown 8% CAGR, while equity markets have delivered 12-15% returns over the long term.",
-    investment: "Recommended allocation: 70% equity mutual funds, 20% gold, 10% debt. This balanced approach should help achieve your wealth goals with managed risk.",
-    simulation: "Running projections for your ₹5 crore target by age 40..."
-  };
 
-  const budgetOvershootResponses = {
-    budgeting: "Based on your previous months' spending, your entertainment expenses have overshot by 10%. You've spent ₹8,000 this month vs budgeted ₹5,000.",
-    asset: "EMI for ₹15,000 is due this month. Your current liquid assets can cover this, but the entertainment overspend reduces your buffer significantly."
-  };
 
-  const housePurchaseResponses = {
-    coordinator: "I'll analyze the feasibility of purchasing a ₹2 crore house within 2 years. Let me coordinate with our agents for a comprehensive assessment.",
-    asset: "Current individual net worth: ₹2.5L. For a ₹2Cr house, you'll need ₹40L down payment (20%) and qualify for ₹1.6Cr loan. Current savings are insufficient.",
-    budgeting: "Your current income ₹60K/month would support max EMI of ₹18K. For ₹1.6Cr loan, EMI would be ₹1.2L/month - 200% of income. Not feasible individually.",
-    market: "Current home loan rates at 8.5%. Property appreciation in your area is 6% annually. Good time to buy, but financing is the challenge.",
-    investment: "Individual timeline too short for wealth building. However, if combined with family member income, this becomes achievable.",
-    simulation: "Individual scenario: REJECTED ❌. Family scenario: If combined with spouse income of ₹50K, total EMI capacity becomes ₹32K. Feasible! ✅"
-  };
 
-  const familyRecommendationData = {
-    individual: {
-      downPayment: 4000000,
-      loanAmount: 16000000,
-      monthlyEMI: 120000,
-      monthlyIncome: 60000,
-      feasible: false
-    },
-    family: {
-      downPayment: 4000000,
-      loanAmount: 16000000,
-      monthlyEMI: 120000,
-      combinedIncome: 110000,
-      feasible: true,
-      savingsTarget: 24,
-      monthlyContribution: 167000
-    }
-  };
 
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,7 +92,7 @@ function App() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async (message) => {
+  const handleSendMessage = async (message: string) => {
     if (!message.trim() || isProcessing) return;
     
     setIsProcessing(true);
@@ -122,7 +136,7 @@ function App() {
       const response = await apiService.sendMessage(message);
       
       // Update the thinking message with routing info if available
-      const updateMessages = (prev) => {
+      const updateMessages = (prev: Message[]) => {
         const newMessages = [...prev];
         const thinkingIndex = newMessages.findIndex(msg => 
           msg.agentId === 'coordinator' && msg.isThinking
@@ -185,7 +199,7 @@ function App() {
 
       // Add final recommendation based on response content
       await sleep(500);
-      const scenarioType = determineScenarioType(message, response.response);
+      const scenarioType = determineScenarioType(message);
       
       if (scenarioType !== 'simple_response') {
         const finalRecommendation = {
@@ -207,7 +221,7 @@ function App() {
       console.error('Error sending message:', error);
       
       // Update thinking message with error
-      const updateMessages = (prev) => {
+      const updateMessages = (prev: Message[]) => {
         const newMessages = [...prev];
         const thinkingIndex = newMessages.findIndex(msg => 
           msg.agentId === 'coordinator' && msg.isThinking
@@ -236,7 +250,7 @@ function App() {
   };
 
   // Helper function to determine scenario type from message and response
-  const determineScenarioType = (message, response) => {
+  const determineScenarioType = (message: string) => {
     const isBudgetOvershoot = message.toLowerCase().includes('overshooting') || message.toLowerCase().includes('overshoot');
     const isHousePurchase = message.toLowerCase().includes('house') || (message.toLowerCase().includes('buy') && message.toLowerCase().includes('2'));
     const isInvestmentPlanning = message.toLowerCase().includes('investment') || message.toLowerCase().includes('plan') || message.toLowerCase().includes('crore');
@@ -248,7 +262,7 @@ function App() {
     return 'simple_response';
   };
 
-  const handleToggleCollapse = (agentId) => {
+  const handleToggleCollapse = (agentId: string) => {
     setCollapsedAgents(prev => {
       const newSet = new Set(prev);
       if (newSet.has(agentId)) {
@@ -260,7 +274,7 @@ function App() {
     });
   };
 
-  const getAgentDescription = (agentId) => {
+  const getAgentDescription = (agentId: string) => {
     const descriptions = {
       coordinator: "Orchestrates multi-agent analysis",
       asset: "Analyzes assets and liabilities",
@@ -269,14 +283,14 @@ function App() {
       investment: "Recommends investment strategies",
       simulation: "Runs financial projections"
     };
-    return descriptions[agentId] || "Financial AI Agent";
+    return descriptions[agentId as keyof typeof descriptions] || "Financial AI Agent";
   };
 
   const toggleNotifications = () => {
     setShowNotifications(!showNotifications);
   };
 
-  const toggleNotificationExpand = (notificationId) => {
+  const toggleNotificationExpand = (notificationId: number) => {
     setExpandedNotification(expandedNotification === notificationId ? null : notificationId);
   };
 
@@ -284,6 +298,9 @@ function App() {
     {
       id: 1,
       type: 'budget_alert',
+      message: 'Entertainment spending is 60% over budget',
+      timestamp: Date.now(),
+      read: false,
       icon: '💰',
       bgColor: 'rgba(255, 183, 77, 0.2)',
       title: 'Budget Alert',
@@ -294,6 +311,9 @@ function App() {
     {
       id: 2,
       type: 'investment_opportunity',
+      message: 'SIP increase recommended based on salary hike',
+      timestamp: Date.now(),
+      read: false,
       icon: '📈',
       bgColor: 'rgba(76, 175, 80, 0.2)',
       title: 'Investment Opportunity',
@@ -304,6 +324,9 @@ function App() {
     {
       id: 3,
       type: 'expense_trend',
+      message: 'Monthly expenses increased 12% over last quarter',
+      timestamp: Date.now(),
+      read: false,
       icon: '📊',
       bgColor: 'rgba(33, 150, 243, 0.2)',
       title: 'Expense Trend',
@@ -313,7 +336,7 @@ function App() {
     }
   ];
 
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = (notification: Notification) => {
     setShowNotifications(false);
     let message = '';
     
@@ -334,7 +357,7 @@ function App() {
     handleSendMessage(message);
   };
 
-  const handleInviteMember = (email, phone) => {
+  const handleInviteMember = (email: string, phone: string) => {
     const newInvite = {
       id: Date.now(),
       email,
@@ -357,19 +380,19 @@ function App() {
     }, 3000);
   };
 
-  const handlePageChange = (page) => {
+  const handlePageChange = (page: 'individual' | 'family') => {
     setCurrentPage(page);
   };
 
-  const ChatMessage = ({ message }) => {
-    const isCollapsed = collapsedAgents.has(message.agentId);
+  const ChatMessage = ({ message }: { message: Message }) => {
+    const isCollapsed = message.agentId ? collapsedAgents.has(message.agentId) : false;
     
     if (message.sender === 'recommendation') {
       return <RecommendationCard message={message} />;
     }
     
     if (message.sender === 'family_recommendation') {
-      return <FamilyRecommendationCard message={message} />;
+      return <FamilyRecommendationCard />;
     }
     
     if (message.sender === 'user') {
@@ -424,7 +447,7 @@ function App() {
               marginBottom: '12px',
               cursor: !message.isThinking ? 'pointer' : 'default'
             }}
-            onClick={!message.isThinking ? () => handleToggleCollapse(message.agentId) : undefined}
+            onClick={!message.isThinking && message.agentId ? () => handleToggleCollapse(message.agentId!) : undefined}
           >
             <div style={{
               width: '20px',
@@ -454,7 +477,7 @@ function App() {
                 color: 'var(--text-muted)',
                 margin: '2px 0 0 0'
               }}>
-                {getAgentDescription(message.agentId)}
+                {getAgentDescription(message.agentId || '')}
               </p>
             </div>
             {message.isThinking && (
@@ -580,7 +603,7 @@ function App() {
               />
               
               {/* Render Charts */}
-              {message.charts && message.charts.map((chart, index) => (
+              {message.charts && message.charts.map((chart: ChartData, index: number) => (
                 <ChartComponent key={index} chartData={chart} />
               ))}
             </div>
@@ -590,7 +613,7 @@ function App() {
     );
   };
 
-  const RecommendationCard = ({ message }) => {
+  const RecommendationCard = ({ message }: { message: Message }) => {
     const isInvestmentPlanning = message.scenario === 'investment_planning';
     const isBudgetOvershoot = message.scenario === 'budget_overshoot';
     
@@ -920,7 +943,7 @@ function App() {
     );
   };
 
-  const FamilyRecommendationCard = ({ message }) => {
+  const FamilyRecommendationCard = () => {
     return (
       <div style={{ 
         marginBottom: '24px', 
@@ -1085,13 +1108,13 @@ function App() {
     );
   };
 
-  const FamilyInviteModal = ({ isOpen, onClose, onInvite }) => {
+  const FamilyInviteModal = ({ isOpen, onClose, onInvite }: { isOpen: boolean; onClose: () => void; onInvite: (email: string, phone: string) => void }) => {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (email && phone) {
         onInvite(email, phone);

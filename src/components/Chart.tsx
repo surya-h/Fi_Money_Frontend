@@ -63,7 +63,7 @@ const ChartComponent: React.FC<ChartComponentProps> = ({ chartData }) => {
         color: 'var(--text-primary)',
         font: {
           size: 16,
-          weight: '600',
+          weight: 600,
         },
       },
       tooltip: {
@@ -97,7 +97,7 @@ const ChartComponent: React.FC<ChartComponentProps> = ({ chartData }) => {
   // Apply default colors if not provided
   const processedData = {
     ...chartData.data,
-    datasets: chartData.data.datasets.map((dataset, index) => ({
+    datasets: chartData.data.datasets.map((dataset) => ({
       ...dataset,
       backgroundColor: dataset.backgroundColor || (
         chartData.type === 'pie' || chartData.type === 'doughnut'
