@@ -5,8 +5,8 @@ name: Deploy to Firebase Hosting
 on:
   # Triggers the workflow on push events but only for the main branch
   push:
-#    branches:
-#      - main
+    branches:
+      - main
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -40,7 +40,7 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}' # GITHUB_TOKEN is automatically provided
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_YOUR_PROJECT_ID }}' # Service account for authentication
+          firebaseServiceAccount: '${{ secrets.SERVICE_ACCOUNT_KEY }}' # Service account for authentication
           channelId: live # Deploys to the live channel
           projectId: 'universal-code-467108-a1' # Your Firebase project ID
         env:
