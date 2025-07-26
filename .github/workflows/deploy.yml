@@ -25,15 +25,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' # Specify the Node.js version you use
+          node-version: '22.14.0' 
 
       # Installs dependencies
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       # Builds the application for production
       - name: Build application
-        run: npm run dev # Or your project's specific build command
+        run: npm run dev 
 
       # Deploys the application to Firebase Hosting
       - name: Deploy to Firebase Hosting
