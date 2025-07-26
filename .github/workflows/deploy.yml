@@ -33,7 +33,7 @@ jobs:
 
       # Builds the application for production
       - name: Build application
-        run: npm run dev 
+        run: npm run build 
 
       # Deploys the application to Firebase Hosting
       - name: Deploy to Firebase Hosting
