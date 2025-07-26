@@ -42,6 +42,6 @@ jobs:
           repoToken: '${{ secrets.GITHUB_TOKEN }}' # GITHUB_TOKEN is automatically provided
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_YOUR_PROJECT_ID }}' # Service account for authentication
           channelId: live # Deploys to the live channel
-          projectId: 'your-firebase-project-id' # Your Firebase project ID
+          projectId: 'universal-code-467108-a1' # Your Firebase project ID
         env:
           FIREBASE_CLI_PREVIEWS: hostingchannels
