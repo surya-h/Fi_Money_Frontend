@@ -84,6 +84,38 @@ function App() {
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+  const streamText = async (fullText: string, messageId: number, isFamily: boolean = false) => {
+    const words = fullText.split(' ');
+    let currentText = '';
+    
+    for (let i = 0; i < words.length; i++) {
+      currentText += (i > 0 ? ' ' : '') + words[i];
+      
+      const updateMessages = (prev: Message[]) => {
+        const newMessages = [...prev];
+        const messageIndex = newMessages.findIndex(msg => msg.id === messageId);
+        
+        if (messageIndex !== -1) {
+          newMessages[messageIndex] = {
+            ...newMessages[messageIndex],
+            content: currentText
+          };
+        }
+        
+        return newMessages;
+      };
+      
+      if (isFamily) {
+        setFamilyMessages(updateMessages);
+      } else {
+        setMessages(updateMessages);
+      }
+      
+      // Random delay between words (20-60ms for natural typing effect)
+      await sleep(Math.floor(Math.random() * 40) + 20);
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -132,8 +164,47 @@ function App() {
     }
 
     try {
-      // Call the backend API through coordinator agent
-      const response = await apiService.sendMessage(message);
+      let response;
+      
+      // Mock response for family mode with streaming delay
+      if (currentPage === 'family') {
+        // Random delay between 45-60 seconds (45000-60000ms)
+        const randomDelay = Math.floor(Math.random() * (60000 - 45000 + 1)) + 45000;
+        await sleep(randomDelay);
+        
+        response = {
+          status: 'success',
+          response: `Based on your family's financial goals and current situation, I've created a comprehensive budgeting simulation:
+
+**Family Budget Analysis:**
+• Monthly Combined Income: ₹2,45,000
+• Essential Expenses: ₹1,20,000 (49%)
+• Family Savings Goal: ₹65,000 (26.5%)
+• Discretionary Spending: ₹60,000 (24.5%)
+
+**Goal Planning Recommendations:**
+1. **House Purchase Fund**: Allocate ₹35,000/month → ₹20L down payment in 48 months
+2. **Children's Education**: ₹15,000/month → ₹15L corpus by 2030
+3. **Emergency Fund**: ₹15,000/month → 6 months expenses secured
+
+**Family Financial Optimization:**
+• Implement automated savings transfers
+• Set up separate goal-based investment accounts
+• Monthly family budget reviews recommended
+• Consider tax-saving investments under 80C
+
+This simulation shows your family can achieve major milestones while maintaining your current lifestyle. Would you like me to drill down into any specific goal?`,
+          agent_name: 'Goal Planning Simulation Agent',
+          routing_info: {
+            routing_message: 'Analyzing your family financial goals and routing to specialized family planning agent...',
+            called_agent: 'goal_planning_simulation_agent'
+          },
+          charts: []
+        };
+      } else {
+        // Call the backend API for individual mode
+        response = await apiService.sendMessage(message);
+      }
       
       // Update the thinking message with routing info if available
       const updateMessages = (prev: Message[]) => {
@@ -178,21 +249,37 @@ function App() {
       if (response.routing_info) {
         await sleep(1000); // Brief pause to show routing
         
+        const specialistMessageId = Date.now() + Math.random();
         const specialistResponse = {
-          id: Date.now() + Math.random(),
-          content: response.response,
+          id: specialistMessageId,
+          content: '',
           sender: 'agent',
           timestamp: Date.now(),
           agentId: response.routing_info.called_agent,
           agentName: response.agent_name || response.routing_info.called_agent.replace('_', ' '),
-          agentColor: response.routing_info.called_agent.includes('goal') ? '#29B6F6' : '#26C6DA',
+          agentColor: response.routing_info.called_agent.includes('goal') ? '#8E24AA' : '#26C6DA',
           isThinking: false,
           charts: response.charts
         };
         
         if (currentPage === 'family') {
           setFamilyMessages(prev => [...prev, specialistResponse]);
+          // Stream the response text for family mode
+          await streamText(response.response, specialistMessageId, true);
+          
+          // Always add comparison cards for family budgeting
+          await sleep(1000); // Brief pause before showing cards
+          const familyComparisonCard = {
+            id: Date.now() + Math.random(),
+            content: '',
+            sender: 'family_recommendation',
+            timestamp: Date.now(),
+            scenario: 'family_budgeting'
+          };
+          setFamilyMessages(prev => [...prev, familyComparisonCard]);
         } else {
+          // For individual mode, show response immediately
+          specialistResponse.content = response.response;
           setMessages(prev => [...prev, specialistResponse]);
         }
       }
@@ -1538,9 +1625,22 @@ function App() {
             {familyMembers.length > 0 && (
               <div style={{ borderTop: '1px solid var(--bg-border)', padding: '16px 0 0' }}>
                 <div style={{ padding: '0 16px 16px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-                    Family Financial Chat
-                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0 }}>
+                      Family Financial Chat
+                    </h3>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: '500',
+                      color: '#FF9800',
+                      backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(255, 152, 0, 0.2)'
+                    }}>
+                      BETA
+                    </span>
+                  </div>
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
                     Discuss financial goals and get joint recommendations
                   </p>
@@ -1586,7 +1686,7 @@ function App() {
           className="chat-input-form"
           onSubmit={(e) => {
             e.preventDefault();
-            if (inputValue.trim() && !isProcessing) {
+            if (inputValue.trim() && !isProcessing && (currentPage !== 'family' || familyMembers.length > 0)) {
               handleSendMessage(inputValue);
             }
           }}
@@ -1600,18 +1700,22 @@ function App() {
             <div className="input-wrapper">
               <textarea
                 className="message-input"
-                placeholder="Ask me anything about your finances..."
+                placeholder={
+                  currentPage === 'family' && familyMembers.length === 0 
+                    ? "Add at least one family member to start planning together..." 
+                    : "Ask me anything about your finances..."
+                }
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    if (inputValue.trim() && !isProcessing) {
+                    if (inputValue.trim() && !isProcessing && (currentPage !== 'family' || familyMembers.length > 0)) {
                       handleSendMessage(inputValue);
                     }
                   }
                 }}
-                disabled={isProcessing}
+                disabled={isProcessing || (currentPage === 'family' && familyMembers.length === 0)}
                 rows={1}
                 style={{
                   resize: 'none',
@@ -1621,8 +1725,8 @@ function App() {
               />
               <button 
                 type="submit" 
-                className={`send-button ${inputValue.trim() && !isProcessing ? 'active' : 'inactive'}`}
-                disabled={!inputValue.trim() || isProcessing}
+                className={`send-button ${inputValue.trim() && !isProcessing && (currentPage !== 'family' || familyMembers.length > 0) ? 'active' : 'inactive'}`}
+                disabled={!inputValue.trim() || isProcessing || (currentPage === 'family' && familyMembers.length === 0)}
               >
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
